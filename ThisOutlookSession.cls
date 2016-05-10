@@ -14,35 +14,36 @@ Private Sub Application_ItemSend(ByVal Item As Object, Cancel As Boolean)
    Dim SensitiveString As Variant
    Dim Element As Variant
    Dim sFlag As Boolean
-   
-   sFlag = False
+   Dim oProp As Long
+   Const PR_SECURITY_FLAGS = "http://schemas.microsoft.com/mapi/proptag/0x6E010003"
    
    SensitiveString = Array("National ID", "Emplid", "SSN", "Payroll ID", "GID", "Compensation", "Comp Rate")
-   For Each Element In SensitiveString
+   
+   oProp = CLng(Item.PropertyAccessor.GetProperty(PR_SECURITY_FLAGS))
+   Debug.Print "Original flag value is: " & oProp
+   
+   uFlags = 0
+   sFlag = False
 
-    If InStr(1, Replace(Item.Body, " ", ""), Replace(Element, " ", ""), vbTextCompare) > 0 Then
+   
+   For Each Element In SensitiveString
+    If (InStr(1, Replace(Item.Body, " ", ""), Replace(Element, " ", ""), vbTextCompare) > 0) Or (InStr(1, Replace(Item.Subject, " ", ""), Replace(Element, " ", ""), vbTextCompare) > 0) Then
         sFlag = True
     End If
-    
    Next Element
    
+   Debug.Print "Original sFlag value is: " & sFlag
    
-   'If attachment exists and is greater than 1KB
-   If Item.Attachments.Count > 0 Or sFlag = True Then
+   If ((Item.Attachments.Count > 0 Or sFlag = True) And oProp <> 3) Then
    
-   'Taken from MS Support page for encrypting emails
-   'Pops up box asking if you want to encrypt email
-    If MsgBox("This email may have sensitive information. Do you want to encrypt before sending?", vbYesNo) = vbYes Then
-      Const PR_SECURITY_FLAGS = "http://schemas.microsoft.com/mapi/proptag/0x6E010003"
-      Dim oProp As Long
-      oProp = CLng(Item.PropertyAccessor.GetProperty(PR_SECURITY_FLAGS))
-      Debug.Print "Original flag value is: " & oProp
-      uFlags = 0
-      ulFlags = ulFlags Or &H1 ' Add the encrypted flag
-      ulFlags = ulFlags Or &H2 ' Add the signed flag
-      Item.PropertyAccessor.SetProperty PR_SECURITY_FLAGS, ulFlags
-      Debug.Print "Updated flag value is: " & ulFlags
+    'Pops up box asking if you want to encrypt email
+     If MsgBox("This email may have sensitive information. Do you want to encrypt before sending?", vbYesNo) = vbYes Then
+        ulFlags = ulFlags Or &H1 ' Add the encrypted flag
+        ulFlags = ulFlags Or &H2 ' Add the signed flag
+        Item.PropertyAccessor.SetProperty PR_SECURITY_FLAGS, ulFlags
+        Debug.Print "Updated flag value is: " & ulFlags
+     End If
+
     End If
-   
-   End If
+
 End Sub
